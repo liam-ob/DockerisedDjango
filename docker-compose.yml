@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  redis:
+    container_name: redis
+    image: redis:5
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+  channels:
+    restart: on-failure
+    working_dir: /example_docker/
+    build: .
+    command: daphne -b 0.0.0.0 -p 8001 example_docker.asgi:application
+    volumes:
+      - ./example_docker:/example_docker
+    ports:
+      - "8001:8001"
+    links:
+      - redis
+  web:
+    restart: on-failure
+    working_dir: /example_docker/
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./example_docker:/example_docker
+    ports:
+      - "8000:8000"
