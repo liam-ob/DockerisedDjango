@@ -1,7 +1,25 @@
 version: "3.9"
 
 services:
+#  qbittorrent:
+#    image: 'linuxserver/qbittorrent:latest'
+#    volumes:
+#      # /mnt/ & rw = read write permissions, /opt/ & ro = read only permissions
+#      - '/mnt/P/00-000 New Project (Example)/:/P/newProject:rw'
+#      - '/mnt/e/Logs/qbittorrent:/config/logs:rw'
+#    ports:
+#      - 8080:8080
+  db:
+    image: postgres:13.0-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=$SQL_USER
+      - POSTGRES_PASSWORD=$SQL_PASSWORD
+      - POSTGRES_DB=$SQL_DATABASE
   redis:
+    volumes:
+      - redis:/data
     container_name: redis
     image: redis:5
     restart: unless-stopped
@@ -18,6 +36,8 @@ services:
       - "8001:8001"
     links:
       - redis
+    env_file:
+      - .env
   web:
     restart: on-failure
     working_dir: /example_docker/
@@ -25,5 +45,27 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./example_docker:/example_docker
+      # mount the drive to the docker linux container
+      - projects:/mnt/projects
     ports:
       - "8000:8000"
+    depends_on:
+      - db
+      - redis
+      - channels
+    env_file:
+      - .env
+
+# named volumes stored in docker only (will NOT map to your local machine)
+volumes:
+  # name the redis volume to avoid clutter
+  redis:
+  # name the postgres volume to avoid clutter
+  postgres_data:
+  # mount the projects folder from the atteris shares to the container?
+  projects:
+    driver: local
+    driver_opts:
+      type: cifs
+      o: username=ATTERIS/liam.obrien,password=Hugecrab10!!,domain=atteris.local
+      device: //192.168.0.1/Shares/Projects/FormCreator
