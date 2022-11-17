@@ -1,5 +1,7 @@
+from __future__ import absolute_import, unicode_literals
 from django.shortcuts import render
 import os
+
 
 
 def index(request):
@@ -12,3 +14,5 @@ def room(request, room_name):
 
 def retrieve_files(request):
     return render(request, "chat/files.html", {'files': os.walk('exampleProjects')})
+
+

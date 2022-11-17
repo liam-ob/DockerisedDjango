@@ -117,6 +117,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_URL", "redis://redis:6379/0",)
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/

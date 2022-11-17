@@ -1,14 +1,12 @@
 version: "3.9"
 
+x-atteris-project:
+  &example-project
+  type: bind
+  source: ./example_docker
+  target: /code/example_docker/
+
 services:
-#  qbittorrent:
-#    image: 'linuxserver/qbittorrent:latest'
-#    volumes:
-#      # /mnt/ & rw = read write permissions, /opt/ & ro = read only permissions
-#      - '/mnt/P/00-000 New Project (Example)/:/P/newProject:rw'
-#      - '/mnt/e/Logs/qbittorrent:/config/logs:rw'
-#    ports:
-#      - 8080:8080
   db:
     image: postgres:13.0-alpine
     volumes:
@@ -17,6 +15,7 @@ services:
       - POSTGRES_USER=$SQL_USER
       - POSTGRES_PASSWORD=$SQL_PASSWORD
       - POSTGRES_DB=$SQL_DATABASE
+
   redis:
     volumes:
       - redis:/data
@@ -25,36 +24,84 @@ services:
     restart: unless-stopped
     ports:
       - 6379:6379
-  channels:
-    restart: on-failure
-    working_dir: /example_docker/
-    build: .
-    command: daphne -b 0.0.0.0 -p 8001 example_docker.asgi:application
-    volumes:
-      - ./example_docker:/example_docker
-    ports:
-      - "8001:8001"
-    links:
-      - redis
-    env_file:
-      - .env
+
   web:
     restart: on-failure
-    working_dir: /example_docker/
+    working_dir: /code/example_docker/
     build: .
+    image: dd/web
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
-      - ./example_docker:/example_docker
-      # mount the drive to the docker linux container
-      - projects:/mnt/projects
+      - *example-project
+      # mount a drive here?
     ports:
       - "8000:8000"
     depends_on:
       - db
       - redis
-      - channels
     env_file:
       - .env
+
+  channels:
+    restart: on-failure
+    image: dd/web
+    working_dir: /code/example_docker/
+    command: daphne -b 0.0.0.0 -p 8001 example_docker.asgi:application
+    volumes:
+      - *example-project
+    ports:
+      - "8001:8001"
+    links:
+      - redis
+    depends_on:
+      - web
+    # use a tag on this for end product: https://docs.docker.com/compose/environment-variables/
+    env_file:
+      - .env
+
+  flower:
+    image: dd/web
+    working_dir: /code/example_docker/
+    command: celery -A example_docker flower --address=0.0.0.0 --port=5555
+    environment:
+      - POSTGRES_USER=$SQL_USER
+      - POSTGRES_PASSWORD=$SQL_PASSWORD
+      - POSTGRES_DB=$SQL_DATABASE
+    depends_on:
+      - db
+      - redis
+      - web
+      - celery-worker
+#    networks:
+#      - db
+#      - redis
+#      - celery-worker
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+
+  celery-worker:
+#    restart: always
+    image: dd/web
+    working_dir: /code/example_docker/
+    command: exec ./docker/celery-worker/entry.sh
+    volumes:
+      - *example-project
+    depends_on:
+      - db
+      - redis
+      - web
+    environment:
+      - POSTGRES_USER=$SQL_USER
+      - POSTGRES_PASSWORD=$SQL_PASSWORD
+      - POSTGRES_DB=$SQL_DATABASE
+    env_file:
+      - .env
+#    networks:
+#      - db
+#      - redis
+#      - celery-worker
 
 # named volumes stored in docker only (will NOT map to your local machine)
 volumes:
@@ -67,5 +114,5 @@ volumes:
     driver: local
     driver_opts:
       type: cifs
-      o: username=ATTERIS/liam.obrien,password=Hugecrab10!!,domain=atteris.local
-      device: //192.168.0.1/Shares/Projects/FormCreator
+      o: username=<user@domain>,password=,uid=,guid=
+      device: //192.168.0.1/Shares/Projects

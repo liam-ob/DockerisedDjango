@@ -1,6 +1,6 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
-
+from chat.tasks import start_new_hit_job
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -29,6 +29,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     # Receive message from room group
     async def chat_message(self, event):
         message = event["message"]
-
+        start_new_hit_job("Liam hehehe")
         # Send message to WebSocket
         await self.send(text_data=json.dumps({"message": message}))
