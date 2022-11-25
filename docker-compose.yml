@@ -3,8 +3,8 @@ version: "3.9"
 x-atteris-project:
   &example-project
   type: bind
-  source: ./example_docker
-  target: /code/example_docker/
+  source: ./
+  target: /code/
 
 services:
   db:
@@ -27,8 +27,10 @@ services:
 
   web:
     restart: on-failure
-    working_dir: /code/example_docker/
-    build: .
+    working_dir: /code/example_docker
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
     image: dd/web
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
@@ -45,7 +47,7 @@ services:
   channels:
     restart: on-failure
     image: dd/web
-    working_dir: /code/example_docker/
+    working_dir: /code/example_docker
     command: daphne -b 0.0.0.0 -p 8001 example_docker.asgi:application
     volumes:
       - *example-project
@@ -55,37 +57,17 @@ services:
       - redis
     depends_on:
       - web
-    # use a tag on this for end product: https://docs.docker.com/compose/environment-variables/
-    env_file:
-      - .env
-
-  flower:
-    image: dd/web
-    working_dir: /code/example_docker/
-    command: celery -A example_docker flower --address=0.0.0.0 --port=5555
-    environment:
-      - POSTGRES_USER=$SQL_USER
-      - POSTGRES_PASSWORD=$SQL_PASSWORD
-      - POSTGRES_DB=$SQL_DATABASE
-    depends_on:
       - db
       - redis
-      - web
-      - celery-worker
-#    networks:
-#      - db
-#      - redis
-#      - celery-worker
-    ports:
-      - "5555:5555"
     env_file:
       - .env
+    # use a tag on this for end product: https://docs.docker.com/compose/environment-variables/
 
   celery-worker:
 #    restart: always
     image: dd/web
-    working_dir: /code/example_docker/
-    command: exec ./docker/celery-worker/entry.sh
+    working_dir: /code
+    command: ./docker/celery-worker/entry.sh
     volumes:
       - *example-project
     depends_on:
@@ -102,6 +84,26 @@ services:
 #      - db
 #      - redis
 #      - celery-worker
+
+  flower:
+    image: dd/web
+    working_dir: /code
+    command: ./docker/celery-flower/entry.sh
+    volumes:
+      - *example-project
+    environment:
+      - POSTGRES_USER=$SQL_USER
+      - POSTGRES_PASSWORD=$SQL_PASSWORD
+      - POSTGRES_DB=$SQL_DATABASE
+    depends_on:
+      - db
+      - redis
+      - web
+      - celery-worker
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
 
 # named volumes stored in docker only (will NOT map to your local machine)
 volumes:

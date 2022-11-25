@@ -13,6 +13,7 @@ psycopg2-binary = "^2.9.5"
 pytest = "^7.2.0"
 pytest-cov = "^4.0.0"
 celery = "^5.2.7"
+flower = "^1.2.0"
 
 [tool.poetry.dev-dependencies]
 
